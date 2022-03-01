@@ -1,0 +1,408 @@
+---
+title: "OR5A2_snakeplot"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(viridis)
+source("./snakeplot_functions.R")
+```
+
+```{r}
+consOR5A2_sequence <- "MAVGRNNTIVTKFILLGFSDHPQMKIFLFVLFLGIYLLTLAWNLSLIALIRMDSHLHTPMYFFLSNLSFLDICYVSSTAPKMLSDIITEQKTISFVGCATQYFVFCGMGLTECFLLAAMAYDRYAAICNPLLYTALISHTLCLKMVAGAYVGGFLSSLIETYSVYQHDFCGPNMINHFFCDLPPVLALSCSDTFTSQVVTFIVGVVVGIVSVLVILISYGYIVAAVLKISSAKGRTKAFSTCASHLTAVTLFYGSGLFMYMRPSSSYSLNRDKVVSIFYALVIPMVNPIIYSLRNKEIKNAMRKAVERDPGLSHGGPFF"
+
+hOR5A2_sequence <- "MAVGRNNTIVTKFILLGLSDHPQMKIFLFMLFLGLYLLTLAWNLSLIALIKMDSHLHMPMYFFLSNLSFLDICYVSSTAPKMLSDIITEQKTISFVGCATQYFVFCGMGLTECFLLAAMAYDRYAAICNPLLYTVLISHTLCLKMVVGAYVGGFLSSFIETYSVYQHDFCGPYMINHFFCDLPPVLALSCSDTFTSEVVTFIVSVVVGIVSVLVVLISYGYIVAAVVKISSATGRTKAFSTCASHLTAVTLFYGSGFFMYMRPSSSYSLNRDKVVSIFYALVIPVVNPIIYSFRNKEIKNAMRKAMERDPGISHGGPFIFMTLG"
+
+hOR5A2_df <- read.csv("./output/OR5A2/OR5A2_data_df.csv")
+
+# This for loop generates a resid_domain data.frame that shows the number of resids for each given domain. Fill in the corresponding resid length for the snake plot below 
+resid_domain <- data.frame() 
+for( i in (hOR5A2_df %>% select(s_domain) %>% unique())$s_domain){
+  temp <- hOR5A2_df %>% select(resid, s_domain) %>% unique() %>% filter(s_domain == i)
+  resid_length <- temp[nrow(temp),]$resid - temp[1,]$resid + 1
+  resid_domain <- rbind(resid_domain, data.frame(resid_length, s_domain = (temp$s_domain %>% unique())))
+}
+resid_domain
+
+```
+
+```{r}
+# snakePlot <- function(terminus, tm1, ic1, tm2, ec1, tm3,
+#                       ic2, tm4, ec2, tm5, ic3, tm6,
+#                       ec3, tm7, ic4,
+#                       aa)
+# (Optional) Constructing a basic domain_df for storing resid domain chain information. This will be added onto our snakeplot later
+domain_df <- snakePlot(21,31,6,30,6,35,
+                          9,28,26,36,3,30,
+                          7,40,16)
+domain_df[1:22,"domain"] = "N-terminus"
+domain_df[23:40,"domain"] = "TMD1 Upper"
+domain_df[41:53,"domain"] = "TMD1 Lower"
+domain_df[53:59,"domain"] = "IC1"
+domain_df[60:70,"domain"] = "TMD2 Lower"
+domain_df[71:89,"domain"] = "TMD2 Upper"
+domain_df[90:95,"domain"] = "EC1"
+domain_df[96:113,"domain"] = "TMD3 Upper"
+domain_df[114:130,"domain"] = "TMD3 Lower"
+domain_df[131:139,"domain"] = "IC2"
+domain_df[140:151,"domain"] = "TMD4 Lower"
+domain_df[152:167,"domain"] = "TMD4 Upper"
+domain_df[168:193,"domain"] = "EC2"
+domain_df[194:209,"domain"] = "TMD5 Upper"
+domain_df[210:229,"domain"] = "TMD5 Lower"
+domain_df[230:232,"domain"] = "IC3"
+domain_df[233:252,"domain"] = "TMD6 Lower"
+domain_df[253:262,"domain"] = "TMD6 Upper"
+domain_df[263:269,"domain"] = "EC3"
+domain_df[270:283,"domain"] = "TMD7 Upper"
+domain_df[284:309,"domain"] = "TMD7 Lower"
+domain_df[310:324,"domain"] = "C-terminus"
+domain_df$resid <- seq(1:nrow(domain_df))
+
+cons_snakeplot_df <- snakePlot(21,31,6,30,6,35,
+                          9,28,26,36,3,30,
+                          7,40,16, 
+                          paste(consOR5A2_sequence, collapse=''))
+cons_snakeplot_df$resid <- seq(1:nrow(cons_snakeplot_df))
+cons_snakeplot_df <- left_join(cons_snakeplot_df, domain_df)
+
+h_snakeplot_df <- snakePlot(21,31,6,30,6,35,
+                          9,28,26,36,3,30,
+                          7,40,16, 
+                          paste(hOR5A2_sequence, collapse=''))
+h_snakeplot_df$resid <- seq(1:nrow(h_snakeplot_df))
+h_snakeplot_df <- left_join(h_snakeplot_df, domain_df)
+
+
+# visualize raw snakeplot structure 
+ggplot(snakeplot_df, aes(x = x, y= y, label=resid)) + 
+    geom_point(size = 10, stroke = 0, alpha = 0.9) +
+    geom_text(hjust=0.5, vjust=0.5, color="white", size=6*0.75) +
+    theme_void()
+
+```
+
+
+
+# Opening and generating CA_CX difference plot 
+```{r}
+# loading in data
+OR5A2_diff_df <- read.csv("./output/OR5A2/OR5A2_CA_CX_differnce.csv", header=TRUE)
+OR5A2_diff_df$X <- NULL
+
+# extract resids of mutated aa from consOR5A2 vs hOR5A2
+mutated_resids <- read.csv("./output/OR5A2/OR5A2_mutated_CA_CX_differnce.csv", header=TRUE)
+mutated_resids <- mutated_resids$resid
+
+# assigns mutated column a size value for the mutated resids. mutated used as size for snakeplotting later
+OR5A2_diff_df$mutated[OR5A2_diff_df$resid %in% mutated_resids] <- 1
+OR5A2_diff_df$mutated[is.na(OR5A2_diff_df$mutated)] <- 0.7
+
+# Adding in distance columns for the separate model snakeplots 
+OR5A2_angleDiff_snakeplot_df <- left_join(cons_snakeplot_df, select(OR5A2_diff_df, resid, hOR5A2_angle_toconsOR5A2, mutated), by='resid')
+colnames(OR5A2_angleDiff_snakeplot_df)[colnames(OR5A2_angleDiff_snakeplot_df) == 'hOR5A2_angle_toconsOR5A2'] <- 'CA_CX_angle'
+
+# Adding in angle columns 
+OR5A2_distanceDiff_snakeplot_df <- left_join(cons_snakeplot_df, select(OR5A2_diff_df, resid, hOR5A2_distance_toconsOR5A2, mutated), by='resid')
+colnames(OR5A2_distanceDiff_snakeplot_df)[colnames(OR5A2_distanceDiff_snakeplot_df) == 'hOR5A2_distance_toconsOR5A2'] <- 'CA_CX_distance'
+
+```
+
+```{r}
+options(repr.plot.width=5, repr.plot.height=30)
+snake_angle_ggplot(OR5A2_angleDiff_snakeplot_df, title = "OR5A2 CA-CX angle difference hOR5A2-consOR5A2", 
+                   direction = 1,  mutated_size = TRUE)
+snake_distance_ggplot(OR5A2_distanceDiff_snakeplot_df,  title = "OR5A2 CA-CX distance difference hOR5A2-consOR5A2",  mutated_size = TRUE)
+
+```
+Save plots
+```{r}
+ggsave(snake_angle_ggplot(OR5A2_angleDiff_snakeplot_df, title = "OR5A2 CA-CX angle difference hOR5A2-consOR5A2", direction = 1,  mutated_size = TRUE),
+       file = "./plots/OR5A2/OR5A2_CA_CX_angle_Diff.png",
+       height=9, width=10, 
+       dpi = 300)
+ggsave(snake_distance_ggplot(OR5A2_distanceDiff_snakeplot_df,  title = "OR5A2 CA-CX distance difference hOR5A2-consOR5A2",  mutated_size = TRUE),
+       file = "./plots/OR5A2/OR5A2_CA_CX_distance_Diff.png",
+       height=9, width=10, 
+       dpi = 300)
+```
+
+
+# opening and generating for CA_CX angle plots
+```{r}
+OR5A2_angle_df <- read.csv("./output/OR5A2/OR5A2_CA_CX_angle.csv", header=TRUE)
+OR5A2_angle_df$X <- NULL
+
+# extract resids of mutated aa from consOR5A2 vs hOR5A2
+mutated_resids <- read.csv("./output/OR5A2/OR5A2_mutated_CA_CX_angle.csv", header=TRUE)
+mutated_resids <- mutated_resids$resid
+
+# assigns mutated column a size value for the mutated resids. mutated used as size for snakeplotting later
+OR5A2_angle_df$mutated[OR5A2_angle_df$resid %in% mutated_resids] <- 1
+OR5A2_angle_df$mutated[is.na(OR5A2_angle_df$mutated)] <- 0.7
+
+hOR5A2_angle_snakeplot_df <- left_join(h_snakeplot_df, select(OR5A2_angle_df, resid, hOR5A2, mutated), by='resid')
+colnames(hOR5A2_angle_snakeplot_df)[colnames(hOR5A2_angle_snakeplot_df) == 'hOR5A2'] <- 'CA_CX_angle'
+
+consOR5A2_angle_snakeplot_df <- left_join(cons_snakeplot_df, select(OR5A2_angle_df, resid, consOR5A2, mutated), by='resid')
+colnames(consOR5A2_angle_snakeplot_df)[colnames(consOR5A2_angle_snakeplot_df) == 'consOR5A2'] <- 'CA_CX_angle'
+
+# OPTIONAL assings CA_CX_angle value to NA IF it's > 80
+# hOR5A2_angle_snakeplot_df[(hOR5A2_angle_snakeplot_df %>% filter(CA_CX_angle > 80))$resid,]$CA_CX_angle = NA
+# consOR5A2_angle_snakeplot_df[(consOR5A2_angle_snakeplot_df %>% filter(CA_CX_angle > 80))$resid,]$CA_CX_angle = NA
+
+```
+
+
+```{r}
+snake_angle_ggplot(consOR5A2_angle_snakeplot_df,  title = "consOR5A2 CA-CX angle",  
+                   direction = -1, mutated_size = TRUE)
+snake_angle_ggplot(hOR5A2_angle_snakeplot_df,  title = "hOR5A2 CA-CX angle",  
+                   direction = -1, mutated_size = TRUE)
+
+# # saving the plots
+# ggsave(snake_angle_ggplot(consOR5A2_angle_snakeplot_df,
+#                           title = "consOR5A2 CA-CX angle",
+#                           direction = -1,  mutated_size = TRUE),
+#        file = "./plots/OR5A2/consOR5A2_CA_CX_angle.png",
+#        height=9, width=10,
+#        dpi = 300)
+# ggsave(snake_angle_ggplot(hOR5A2_angle_snakeplot_df,
+#                           title = "hOR5A2 CA-CX angle",
+#                           direction = -1,  mutated_size = TRUE),
+#        file = "./plots/OR5A2/hOR5A2_CA_CX_angle.png",
+#        height=9, width=10,
+#        dpi = 300)
+# Saving the plots with FILTERED greyed out value for angles > 80
+ggsave(snake_angle_ggplot(consOR5A2_angle_snakeplot_df,
+                          title = "consOR5A2 CA-CX angle filtered",
+                          direction = -1,  mutated_size = TRUE),
+       file = "./plots/OR5A2/consOR5A2_CA_CX_angle_filtered.png",
+       height=9, width=10,
+       dpi = 300)
+ggsave(snake_angle_ggplot(hOR5A2_angle_snakeplot_df,
+                          title = "hOR5A2 CA-CX angle filtered",
+                          direction = -1,  mutated_size = TRUE),
+       file = "./plots/OR5A2/hOR5A2_CA_CX_angle_filtered.png",
+       height=9, width=10,
+       dpi = 300)
+```
+
+# opening and generating for CA_CX distance plots
+```{r}
+OR5A2_distance_df <- read.csv("./output/OR5A2/OR5A2_CA_CX_distance.csv", header=TRUE)
+OR5A2_distance_df$X <- NULL
+
+# extract resids of mutated aa from consOR5A2 vs hOR5A2
+mutated_resids <- read.csv("./output/OR5A2/OR5A2_mutated_CA_CX_distance.csv", header=TRUE)
+mutated_resids <- mutated_resids$resid
+
+# assigns mutated column a size value for the mutated resids. mutated used as size for snakeplotting later
+OR5A2_distance_df$mutated[OR5A2_distance_df$resid %in% mutated_resids] <- 1
+OR5A2_distance_df$mutated[is.na(OR5A2_distance_df$mutated)] <- 0.7
+
+hOR5A2_distance_snakeplot_df <- left_join(h_snakeplot_df, select(OR5A2_distance_df, resid, hOR5A2, mutated), by='resid')
+colnames(hOR5A2_distance_snakeplot_df)[colnames(hOR5A2_distance_snakeplot_df) == 'hOR5A2'] <- 'CA_CX_distance'
+
+consOR5A2_distance_snakeplot_df <- left_join(cons_snakeplot_df, select(OR5A2_distance_df, resid, consOR5A2, mutated), by='resid')
+colnames(consOR5A2_distance_snakeplot_df)[colnames(consOR5A2_distance_snakeplot_df) == 'consOR5A2'] <- 'CA_CX_distance'
+
+# OPTIONAL assings CA_CX_disntance value to NA IF it's < 0
+# hOR5A2_distance_snakeplot_df[(hOR5A2_distance_snakeplot_df %>% filter(CA_CX_distance < 0))$resid,]$CA_CX_distance = NA
+# consOR5A2_distance_snakeplot_df[(consOR5A2_distance_snakeplot_df %>% filter(CA_CX_distance < 0))$resid,]$CA_CX_distance = NA
+
+
+```
+
+
+```{r}
+snake_distance_ggplot(consOR5A2_distance_snakeplot_df,  title = "consOR5A2 CA-CX distance", 
+                      mutated_size = TRUE)
+snake_distance_ggplot(hOR5A2_distance_snakeplot_df,  title = "hOR5A2 CA-CX distance",  
+                      mutated_size = TRUE)
+
+
+# # saving the plots
+# ggsave(snake_distance_ggplot(consOR5A2_distance_snakeplot_df,  title = "consOR5A2 CA-CX distance",
+#                       mutated_size = TRUE),
+#        file = "./plots/OR5A2/consOR5A2_CA_CX_distance.png",
+#        height=9, width=10,
+#        dpi = 300)
+# ggsave(snake_distance_ggplot(hOR5A2_distance_snakeplot_df,  title = "hOR5A2 CA-CX distance",
+#                       mutated_size = TRUE),
+#        file = "./plots/OR5A2/hOR5A2_CA_CX_distance.png",
+#        height=9, width=10,
+#        dpi = 300)
+# Saving plots for < 0 GREYED OUT PLOTS 
+ggsave(snake_distance_ggplot(consOR5A2_distance_snakeplot_df,  title = "consOR5A2 CA-CX distance filtered",
+                      mutated_size = TRUE),
+       file = "./plots/OR5A2/consOR5A2_CA_CX_distance_filtered.png",
+       height=9, width=10,
+       dpi = 300)
+ggsave(snake_distance_ggplot(hOR5A2_distance_snakeplot_df,  title = "hOR5A2 CA-CX distance filtered",
+                      mutated_size = TRUE),
+       file = "./plots/OR5A2/hOR5A2_CA_CX_distance_filtered.png",
+       height=9, width=10,
+       dpi = 300)
+```
+
+
+
+# opening and generating for CX_center_distance plots
+```{r}
+OR5A2_center_distance_df <- read.csv("./output/OR5A2/OR5A2_CX_center_distance.csv", header=TRUE)
+OR5A2_center_distance_df$X <- NULL
+
+# extract resids of mutated aa from consOR5A2 vs hOR5A2
+mutated_resids <- read.csv("./output/OR5A2/OR5A2_mutated_CA_CX_distance.csv", header=TRUE)
+mutated_resids <- mutated_resids$resid
+
+# assigns mutated column a size value for the mutated resids. mutated used as size for snakeplotting later
+OR5A2_center_distance_df$mutated[OR5A2_center_distance_df$resid %in% mutated_resids] <- 1
+OR5A2_center_distance_df$mutated[is.na(OR5A2_center_distance_df$mutated)] <- 0.7
+
+hOR5A2_center_distance_snakeplot_df <- left_join(h_snakeplot_df, select(OR5A2_center_distance_df, resid, hOR5A2, mutated), by='resid')
+colnames(hOR5A2_center_distance_snakeplot_df)[colnames(hOR5A2_center_distance_snakeplot_df) == 'hOR5A2'] <- 'CA_CX_distance'
+
+consOR5A2_center_distance_snakeplot_df <- left_join(cons_snakeplot_df, select(OR5A2_center_distance_df, resid, consOR5A2, mutated), by='resid')
+colnames(consOR5A2_center_distance_snakeplot_df)[colnames(consOR5A2_center_distance_snakeplot_df) == 'consOR5A2'] <- 'CA_CX_distance'
+
+# Construct a OR5A2 CX_to center difference table between the consOR5A2 and hOR5A2
+OR5A2_center_distance_difference_snakeplot_df <- consOR5A2_center_distance_snakeplot_df
+OR5A2_center_distance_difference_snakeplot_df$CA_CX_distance <- consOR5A2_center_distance_snakeplot_df$CA_CX_distance - hOR5A2_center_distance_snakeplot_df$CA_CX_distance
+
+
+```
+
+
+```{r}
+# sort(hOR5A2_center_distance_snakeplot_df$CA_CX_distance)
+# sort(consOR5A2_center_distance_snakeplot_df$CA_CX_distance)
+
+snake_distance_ggplot(consOR5A2_center_distance_snakeplot_df,  title = "consOR5A2 CX-center distance", 
+                      mutated_size = TRUE,
+                      min_distance = 0, 
+                      max_distance = 20)
+snake_distance_ggplot(hOR5A2_center_distance_snakeplot_df,  title = "hOR5A2 CX-center distance",  
+                      mutated_size = TRUE,
+                      min_distance = 0, 
+                      max_distance = 20)
+
+# # saving the plots
+# ggsave(snake_distance_ggplot(consOR5A2_center_distance_snakeplot_df,  title = "consOR5A2 CX-center distance",
+#       mutated_size = TRUE,
+#       min_distance = 0,
+#       max_distance = 20),
+#        file = "./plots/OR5A2/consOR5A2_CX_center_distance.png",
+#        height=9, width=10,
+#        dpi = 300)
+# ggsave(snake_distance_ggplot(hOR5A2_center_distance_snakeplot_df,  title = "hOR5A2 CX-center distance",
+#       mutated_size = TRUE,
+#       min_distance = 0,
+#       max_distance = 20),
+#        file = "./plots/OR5A2/hOR5A2_CX_center_distance.png",
+#        height=9, width=10,
+#        dpi = 300)
+```
+
+
+Plots line graphs for the CX to center distance to better visualize 
+```{r}
+
+# Assignss NA to distance column for all the resid that's NOT IN the binding cavity domain. Upper TM3,5,6,7 and EC2
+trimmed_hOR5A2_center_distance <- hOR5A2_center_distance_snakeplot_df
+trimmed_hOR5A2_center_distance[(trimmed_hOR5A2_center_distance %>% filter(!domain %in% c('EC2','TMD3 Upper', 'TMD5 Upper', 'TMD6 Upper', 'TMD7 Upper')))$resid,]$CA_CX_distance = NA
+
+trimmed_consOR5A2_center_distance <- consOR5A2_center_distance_snakeplot_df
+trimmed_consOR5A2_center_distance[(trimmed_consOR5A2_center_distance %>% filter(!domain %in% c('EC2','TMD3 Upper', 'TMD5 Upper', 'TMD6 Upper', 'TMD7 Upper')))$resid,]$CA_CX_distance = NA
+
+ggplot(NULL, aes(x=resid, y=CA_CX_distance, label=text)) +
+  geom_line(data = consOR5A2_center_distance_snakeplot_df, color = "grey") + #Draw grey line for all resid
+  geom_point(data = consOR5A2_center_distance_snakeplot_df %>% filter(mutated==1), size = 5, alpha = 0.3) +  # plots the mutated site
+  geom_text(data = consOR5A2_center_distance_snakeplot_df %>% filter(mutated==1), size = 5) +  # labels the mutated site
+  geom_line(data = trimmed_consOR5A2_center_distance, color = "red") +
+  geom_line(data = trimmed_hOR5A2_center_distance, color = "blue") +
+  geom_point(data = trimmed_consOR5A2_center_distance, size = 2, alpha = 0.5) +
+  ggtitle('CX to cavity center distance') +
+  theme_classic()
+
+```
+
+
+```{r}
+ggplot(NULL, aes(x=resid, y=CA_CX_distance, label=text)) +
+  geom_line(data = trimmed_consOR5A2_center_distance, color = "red") +
+  geom_line(data = trimmed_hOR5A2_center_distance, color = "blue") +
+  geom_point(data = trimmed_consOR5A2_center_distance %>% filter(mutated==1), size = 5, alpha = 0.3) +
+  geom_point(data = trimmed_consOR5A2_center_distance, size = 2, alpha = 0.5) +
+  geom_text(data = trimmed_consOR5A2_center_distance %>% filter(mutated==1), size = 5) +
+  ggtitle('TM3 Upper') +
+  xlim(96, 114) +
+  theme_classic()
+```
+
+
+```{r}
+ggplot(NULL, aes(x=resid, y=CA_CX_distance, label=text)) +
+  geom_line(data = trimmed_consOR5A2_center_distance, color = "red") +
+  geom_line(data = trimmed_hOR5A2_center_distance, color = "blue") +
+  geom_point(data = trimmed_consOR5A2_center_distance %>% filter(mutated==1), size = 5, alpha = 0.3) +
+  geom_point(data = trimmed_consOR5A2_center_distance, size = 2, alpha = 0.5) +
+  geom_text(data = trimmed_consOR5A2_center_distance %>% filter(mutated==1), size = 5) +
+  ggtitle('EC2 and TM5 Upper') +
+  xlim(165, 210) +
+  theme_classic()
+
+```
+
+```{r}
+ggplot(NULL, aes(x=resid, y=CA_CX_distance, label=text)) +
+  geom_line(data = trimmed_consOR5A2_center_distance, color = "red") +
+  geom_line(data = trimmed_hOR5A2_center_distance, color = "blue") +
+  geom_point(data = trimmed_consOR5A2_center_distance %>% filter(mutated==1), size = 5, alpha = 0.3) +
+  geom_point(data = trimmed_consOR5A2_center_distance, size = 2, alpha = 0.5) +
+  geom_text(data = trimmed_consOR5A2_center_distance %>% filter(mutated==1), size = 5) +
+  xlim(253, 263) +
+  ggtitle('TM6 Upper') +
+  theme_classic()
+```
+
+```{r}
+ggplot(NULL, aes(x=resid, y=CA_CX_distance, label=text)) +
+  geom_line(data = trimmed_consOR5A2_center_distance, color = "red") +
+  geom_line(data = trimmed_hOR5A2_center_distance, color = "blue") +
+  geom_point(data = trimmed_consOR5A2_center_distance %>% filter(mutated==1), size = 5, alpha = 0.3) +
+  geom_point(data = trimmed_consOR5A2_center_distance, size = 2, alpha = 0.5) +
+  geom_text(data = trimmed_consOR5A2_center_distance %>% filter(mutated==1), size = 5) +
+  xlim(270, 283) +
+  ggtitle('TM7 Upper') +
+  theme_classic()
+```
+
+
+
+
+Ploting the OR5A2 CX to center distance difference between consOR5A2 and hOR5A2
+```{r}
+# sort(OR5A2_center_distance_difference_snakeplot_df$CA_CX_distance)
+snake_distance_ggplot(OR5A2_center_distance_difference_snakeplot_df,  title = "OR5A2 CX-center difference",  
+                      mutated_size = TRUE,
+                      min_distance = -0.5, 
+                      max_distance = 0.5)
+ggsave(snake_distance_ggplot(OR5A2_center_distance_difference_snakeplot_df,  title = "OR5A2 CX-center difference",
+mutated_size = TRUE,
+min_distance = -0.5,
+max_distance = 0.5),
+       file = "./plots/OR5A2/OR5A2_CX_center_distance_difference.png",
+       height=9, width=10,
+       dpi = 300)
+```
+
+```{r}
+h_snakeplot_df
+cons_snakeplot_df
+```
+
+

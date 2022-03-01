@@ -183,8 +183,10 @@ snakePlot <- function(ec1, tm1, ic1, tm2, ec2, tm3,
 OR51_rmsd <- read.csv("./OR51_rmsd.csv", header=TRUE)
 OR51_rmsd$X <- NULL
 OR51_rmsd
-
 ```
+
+
+# Creating snakeplot_df and structure for OR51 
 ```{r}
 # creating snakeplot dataframe for OR51 sequence 
 OR51_sequence = strsplit("MSINNSTSSAATFLLTGIPGLEAAHIWISIPFCFMYLIAILGNGTILFIIRTEPSLHEPMYYFLSMLAATDLGLSLSTLPTVLGIFWFNAREISFNACFAQMFFIHGFSFMESSVLLAMAFDRFVAICNPLRYASILTNTRVAKIGLAILTRSFLLILPLPFLLKRLPYCHSNVLSHSYCLHQDVMKLACADIRFNSIYGLFVVLSTMGLDSLLILFSYILILKTVLGIASREERLKALNTCVSHICAVLVFYVPMIGLSLVHRFGKHVPPVVHVLMANVYLLVPPVMNPIIYSVKTKQIRKRILRLFSLKKI", "")[[1]]
@@ -193,7 +195,8 @@ OR51_sequence = strsplit("MSINNSTSSAATFLLTGIPGLEAAHIWISIPFCFMYLIAILGNGTILFIIRTEP
 #                       ic2, tm4, ec3, tm5, ic3, tm6,
 #                       ec4, tm7, ic4,
 #                       aa)
-snakeplot_df <- snakePlot(23,28,6,29,6,34,10,22,36,30,7,33,11,19,19,paste(OR51_sequence, collapse=''))
+## base pairs of each of the following domain to form snake structure 
+snakeplot_df <- snakePlot(23,28,6,29,6,34,10,22,36,30,7,33,11,19,19, paste(OR51_sequence, collapse=''))
 snakeplot_df$resid <- seq(1:nrow(snakeplot_df))
 
 # naming the domains 
@@ -241,40 +244,20 @@ ggplot(snakeplot_df, aes(x = x, y= y, label=resid)) +
     geom_point(size = 10, stroke = 0, alpha = 0.9) +
     geom_text(hjust=0.5, vjust=0.5, color="white", size=6*0.75)
 
-
-# Adding in rmsd columns for the separate model snakeplots 
-alphafold_snakeplot_df <- left_join(snakeplot_df, select(OR51_rmsd, resid, alphafold), by='resid')
-colnames(alphafold_snakeplot_df)[colnames(alphafold_snakeplot_df) == 'alphafold'] <- 'rmsd'
-pontcy_snakeplot_df <- left_join(snakeplot_df, select(OR51_rmsd, resid, pontcy), by='resid')
-colnames(pontcy_snakeplot_df)[colnames(pontcy_snakeplot_df) == 'pontcy'] <- 'rmsd'
-
 ```
 
 
-
-
-# generating a attribute .txt file for chimera plotting 
 ```{r}
-# generating a attribute .txt file for chimera plotting 
-OR51_rmsd
-alphafold_rmsd_attribute <- OR51_rmsd %>%  select(resid, alphafold)
-# write.table(alphafold_rmsd_attribute,"./alphafold_rmsd_attribute.txt",sep="\t",row.names=FALSE)
-pontcy_rmsd_attribute <- OR51_rmsd %>%  select(resid, pontcy)
-# write.table(pontcy_rmsd_attribute,"./pontcy_rmsd_attribute.txt",sep="\t",row.names=FALSE)
-
-```
-
-
-
-```{r}
-# plotting the snakeplot 
-snakeplot_ggplot <- function(snakeplot_df, title=""){
-  plot <- ggplot(snakeplot_df, aes(x = x, y= y, label=text, color = rmsd)) + 
+## multi functional snakekeplot_ggplot function 
+snake_angle_ggplot <- function(snakeplot_df, title="", min_angle=0, max_angle=80, direction = -1){
+  plot <- ggplot(snakeplot_df, aes(x = x, y= y, label=text, color = CA_CX_angle)) + 
     ggtitle(title) +
     geom_path(color = "black") +
     geom_point(size = 7, stroke = 0, alpha = 0.9) +
-    scale_color_viridis(name = 'RMSD (Å)', 
-                        limits = c(0,5), oob = scales::squish) +
+    scale_color_viridis(name = 'angle °',
+                        limits = c(min_angle,max_angle), 
+                        oob = scales::squish,
+                        direction = direction ) +
     geom_text(hjust=0.5, vjust=0.5, color="white", size=6*0.75) +
     theme(legend.position=c(.85,.85),
           legend.direction = "horizontal",
@@ -300,18 +283,258 @@ snakeplot_ggplot <- function(snakeplot_df, title=""){
 }
 
 
-options(repr.plot.width=10, repr.plot.height=10)
-snakeplot_ggplot(alphafold_snakeplot_df, title = "OR51 alphafold - cryoEM RMSD")
-snakeplot_ggplot(pontcy_snakeplot_df,  title = "OR51 pontcy - cryoEM RMSD")
+snake_distance_ggplot <- function(snakeplot_df, title="", min_distance=0, max_distance=5, direction = 1){
+  # if there isn't rmsd column, color by CA_CX_distance, else color by rmsd 
+  if(!is.null(snakeplot_df$rmsd)){
+    plot <- ggplot(snakeplot_df, aes(x = x, y= y, label=text, color = rmsd))
+  }else{
+    plot <- ggplot(snakeplot_df, aes(x = x, y= y, label=text, color = CA_CX_distance))
+  }
+  
+  plot <- plot +
+    ggtitle(title) +
+    geom_path(color = "black") +
+    geom_point(size = 7, stroke = 0, alpha = 0.9) +
+    scale_color_viridis(name = 'RMSD (Å)', 
+                        limits = c(min_distance,max_distance),
+                        oob = scales::squish,
+                        direction = direction) +
+    geom_text(hjust=0.5, vjust=0.5, color="white", size=6*0.75) +
+    theme(legend.position=c(.85,.85),
+          legend.direction = "horizontal",
+          legend.box = "vertical",
+          legend.title = element_text(size=10),
+          legend.text = element_text(size=10),
+          legend.key.size = unit(0.7, 'cm'),
+          axis.line=element_blank(),
+          axis.text.x=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(),
+          plot.title= element_text(size = 20, hjust = 0.5)) +
+    guides(colour = guide_colourbar(title.position="top", title.hjust = 0.5,
+                                    frame.colour = "black", ticks.color = "black"),
+           size = guide_legend(title.position="top", title.hjust = 0.5))
+  
+  return(plot)
+}
+## updates snakeplot_ggplot function for direction 
+snake_binary_ggplot <- function(snakeplot_df, title=""){
+  plot <- ggplot(snakeplot_df, aes(x = x, y= y, label=text, color = manual_direction)) + 
+    ggtitle(title) +
+    geom_path(color = "black") +
+    geom_point(size = 7, stroke = 0, alpha = 0.9) +
+    scale_color_viridis(name = ' Outwards(0) Inward (1)',
+                        limits = c(0,1), oob = scales::squish ) +
+    geom_text(hjust=0.5, vjust=0.5, color="white", size=6*0.75) +
+    theme(legend.position=c(.85,.85),
+          legend.direction = "horizontal",
+          legend.box = "vertical",
+          legend.title = element_text(size=10),
+          legend.text = element_text(size=10),
+          legend.key.size = unit(0.7, 'cm'),
+          axis.line=element_blank(),
+          axis.text.x=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(),
+          plot.title= element_text(size = 20, hjust = 0.5)) +
+    guides(colour = guide_colourbar(title.position="top", title.hjust = 0.5,
+                                    frame.colour = "black", ticks.color = "black"),
+           size = guide_legend(title.position="top", title.hjust = 0.5))
+  
+  return(plot)
+}
+```
 
+
+
+
+# Adding rmsd feature to the snakeplot_df 
+```{r}
+# Adding in rmsd columns for the separate model snakeplots 
+alphafold_snakeplot_df <- left_join(snakeplot_df, select(OR51_rmsd, resid, alphafold), by='resid')
+colnames(alphafold_snakeplot_df)[colnames(alphafold_snakeplot_df) == 'alphafold'] <- 'rmsd'
+homology_snakeplot_df <- left_join(snakeplot_df, select(OR51_rmsd, resid, pontcy), by='resid')
+colnames(pontcy_snakeplot_df)[colnames(homology_snakeplot_df) == 'pontcy'] <- 'rmsd'
+```
+
+# generating a attribute .txt file for chimera plotting 
+```{r}
+# generating a attribute .txt file for chimera plotting 
+OR51_rmsd
+alphafold_rmsd_attribute <- OR51_rmsd %>%  select(resid, alphafold)
+# write.table(alphafold_rmsd_attribute,"./alphafold_rmsd_attribute.txt",sep="\t",row.names=FALSE)
+homology_snakeplot_df <- OR51_rmsd %>%  select(resid, pontcy)
+# write.table(pontcy_rmsd_attribute,"./pontcy_rmsd_attribute.txt",sep="\t",row.names=FALSE)
+
+```
+
+
+# Plots the RMSD variance at the resid position for models in respect to CryoEM structure
+```{r}
+options(repr.plot.width=10, repr.plot.height=10)
+snake_distance_ggplot(alphafold_snakeplot_df, title = "OR51 alphafold - cryoEM RMSD", max_distance = 5)
+snake_distance_ggplot(pontcy_snakeplot_df,  title = "OR51 pontcy - cryoEM RMSD", max_distance = 5)
 ```
 
 
 # Data from 2_OR_BindingCavity.ipynb
 ```{r}
+OR51_CA_CX_distance <- read.csv("./OR51_CA_CX_distance.csv", header=TRUE)
+OR51_CA_CX_distance$X <- NULL
+OR51_CA_CX_distance
+
+OR51_CA_CX_angle <- read.csv("./OR51_CA_CX_angle.csv", header=TRUE)
+OR51_CA_CX_angle$X <- NULL
+OR51_CA_CX_angle
+```
+
+
+# Adding CA_CX_distance/angle to the snakeplot_df 
+```{r}
+# Adding in distance columns for the separate model snakeplots 
+alphafold_snakeplot_df <- left_join(snakeplot_df, select(OR51_CA_CX_distance, resid, alphafold), by='resid')
+colnames(alphafold_snakeplot_df)[colnames(alphafold_snakeplot_df) == 'alphafold'] <- 'CA_CX_distance'
+alphafold_snakeplot_df <- alphafold_snakeplot_df %>% mutate(direction = ifelse(CA_CX_distance > 0, 1, -1 )) %>% 
+  filter(resid > 87)
+# Adding in angle columns 
+alphafold_snakeplot_df <- left_join(alphafold_snakeplot_df, select(OR51_CA_CX_angle, resid, alphafold), by='resid')
+colnames(alphafold_snakeplot_df)[colnames(alphafold_snakeplot_df) == 'alphafold'] <- 'CA_CX_angle'
+
+homology_snakeplot_df <- left_join(snakeplot_df, select(OR51_CA_CX_distance, resid, homology), by='resid')
+colnames(homology_snakeplot_df)[colnames(homology_snakeplot_df) == 'homology'] <- 'CA_CX_distance'
+homology_snakeplot_df <- homology_snakeplot_df %>% mutate(direction = ifelse(CA_CX_distance > 0, 1, -1 )) %>% 
+  filter(resid > 87)
+homology_snakeplot_df <- left_join(homology_snakeplot_df, select(OR51_CA_CX_angle, resid, homology), by='resid')
+colnames(homology_snakeplot_df)[colnames(homology_snakeplot_df) == 'homology'] <- 'CA_CX_angle'
+
+cryoEM_snakeplot_df <- left_join(snakeplot_df, select(OR51_CA_CX_distance, resid, cryoEM), by='resid')
+colnames(cryoEM_snakeplot_df)[colnames(cryoEM_snakeplot_df) == 'cryoEM'] <- 'CA_CX_distance'
+cryoEM_snakeplot_df <- cryoEM_snakeplot_df %>% mutate(direction = ifelse(CA_CX_distance > 0, 1, -1 )) %>% 
+  filter(resid > 87)
+cryoEM_snakeplot_df <- left_join(cryoEM_snakeplot_df, select(OR51_CA_CX_angle, resid, cryoEM), by='resid')
+colnames(cryoEM_snakeplot_df)[colnames(cryoEM_snakeplot_df) == 'cryoEM'] <- 'CA_CX_angle'
 
 
 ```
 
 
+
+```{r}
+options(repr.plot.width=10, repr.plot.height=10)
+snake_angle_ggplot(alphafold_snakeplot_df, title = "OR51 alphafold CA-CX angle")
+snake_angle_ggplot(homology_snakeplot_df,  title = "OR51 homologyCA-CX angle")
+snake_angle_ggplot(cryoEM_snakeplot_df,  title = "OR51 cryoEM CA-CX angle")
+
+```
+```{r}
+
+options(repr.plot.width=10, repr.plot.height=10)
+snake_distance_ggplot(alphafold_snakeplot_df, title = "OR51 alphafold CA-CX distance", min_distance = -5)
+snake_distance_ggplot(homology_snakeplot_df,  title = "OR51 homology CA-CX distance", min_distance = -5)
+snake_distance_ggplot(cryoEM_snakeplot_df,  title = "OR51 cryoEM CA-CX distance", min_distance = -5)
+
+```
+
+```{r}
+
+options(repr.plot.width=10, repr.plot.height=10)
+snake_distance_ggplot(alphafold_snakeplot_df, title = "OR51 alphafold CA-CX distance")
+snake_distance_ggplot(homology_snakeplot_df,  title = "OR51 homology CA-CX distance")
+snake_distance_ggplot(cryoEM_snakeplot_df,  title = "OR51 cryoEM CA-CX distance")
+
+```
+
+
+
+# Add manual data onto snakeplot_df to compare manual picked ligands vs degree 
+```{r}
+## manual data heat_data extracted from the modeller_plots.rmd located at modeller/OR51/.
+## below are residues found to involved ( AA pointing towards binding cavity ) for the corresponding models 
+alphafold_resid = strtoi(strsplit("101 104 105 108 111 180 182 183 185 186 192 199 203 206 207 251 252 255 258 259 270 274 277", " ")[[1]])
+cryoEM_resid = strtoi(strsplit("100 101 104 105 108 180 182 183 195 196 199 203 207 251 252 255 259 262 273 277 280 281", " ")[[1]])
+# TM7 of cryoEM 273 277 280 281
+pontcy_resid = strtoi(strsplit("101 104 105 108 183 186 190 198 199 202 206 207 252 255 259 263 275 278 281", " ")[[1]])
+## pontcy labeled by claire 101 104 105 108 198 199 202 206 207 252 255 259 263 275 278 281
+data <- data %>% mutate( alphafold = ifelse( data$resid_number %in% alphafold_resid, 1, 0 ))
+data <- data %>% mutate( cryoEM = ifelse( data$resid_number %in% cryoEM_resid, 1, 0 ))
+data <- data %>% mutate( pontcy = ifelse( data$resid_number %in% pontcy_resid, 1, 0 ))
+data <- data %>% filter(resid_number %in% unique(append(append(append(alphafold_resid, cryoEM_resid), pontcy_resid), c(251,252,253)))) ## filter data by resid only show up in model AND include fyg motif (251-253)
+## make data
+## T() swaps col and row, to transform for better horizontal heatmap plotting. 
+heat_data <- t(data[,3:5])
+# colnames(heat_data) <- data$resid_sequence
+colnames(heat_data) <- data$resid_number
+# heat_data
+
+manual_data = data.frame(t(heat_data))[0:3]
+manual_data = rownames_to_column(manual_data, var = "resid")
+manual_data$resid = as.integer(manual_data$resid)
+# manual_data
+# attaching the manual data onto snakeplot
+manual_alphafold_snakeplot_df <- left_join(snakeplot_df, select(manual_data, resid, alphafold), by='resid')
+manual_alphafold_snakeplot_df <- manual_alphafold_snakeplot_df %>% filter(resid > 87)
+manual_cryoEM_snakeplot_df <- left_join(snakeplot_df, select(manual_data, resid, cryoEM), by='resid')
+manual_cryoEM_snakeplot_df <- manual_cryoEM_snakeplot_df %>% filter(resid > 87)
+manual_homology_snakeplot_df <- left_join(snakeplot_df, select(manual_data, resid, pontcy), by='resid')
+manual_homology_snakeplot_df <- manual_homology_snakeplot_df %>% filter(resid > 87)
+
+colnames(manual_alphafold_snakeplot_df)[colnames(manual_alphafold_snakeplot_df) == 'alphafold'] <- 'manual_direction'
+colnames(manual_cryoEM_snakeplot_df)[colnames(manual_cryoEM_snakeplot_df) == 'cryoEM'] <- 'manual_direction'
+colnames(manual_homology_snakeplot_df)[colnames(manual_homology_snakeplot_df) == 'pontcy'] <- 'manual_direction'
+```
+
+
+```{r}
+options(repr.plot.width=15, repr.plot.height=15)
+snake_binary_ggplot(manual_alphafold_snakeplot_df, title = "OR51 alphafold manual_direction")
+snake_binary_ggplot(manual_cryoEM_snakeplot_df,  title = "OR51 cryoEM manual_direction")
+snake_binary_ggplot(manual_homology_snakeplot_df,  title = "OR51 homology manual_direction")
+
+```
+
+
+
+# plots the difference of angle/distance from CA_CX_diff.csv 
+```{r}
+OR51_CA_CX_diff <- read.csv("./OR51_CA_CX_diff.csv", header=TRUE)
+OR51_CA_CX_diff$X <- NULL
+OR51_CA_CX_diff
+```
+
+
+```{r}
+# Adding in distance columns for the separate model snakeplots 
+alphafold_diff_snakeplot_df <- left_join(snakeplot_df, select(OR51_CA_CX_diff, resid, alphafold_distance_tocryoEM), by='resid')
+colnames(alphafold_diff_snakeplot_df)[colnames(alphafold_diff_snakeplot_df) == 'alphafold_distance_tocryoEM'] <- 'CA_CX_distance'
+# Adding in angle columns 
+alphafold_diff_snakeplot_df <- left_join(alphafold_diff_snakeplot_df, select(OR51_CA_CX_diff, resid, alphafold_angle_tocryoEM), by='resid') %>% filter(resid > 87)
+colnames(alphafold_diff_snakeplot_df)[colnames(alphafold_diff_snakeplot_df) == 'alphafold_angle_tocryoEM'] <- 'CA_CX_angle'
+
+
+homology_diff_snakeplot_df <- left_join(snakeplot_df, select(OR51_CA_CX_diff, resid, homology_distance_tocryoEM), by='resid')
+colnames(homology_diff_snakeplot_df)[colnames(homology_diff_snakeplot_df) == 'homology_distance_tocryoEM'] <- 'CA_CX_distance'
+homology_diff_snakeplot_df <- left_join(homology_diff_snakeplot_df, select(OR51_CA_CX_diff, resid, homology_angle_tocryoEM), by='resid') %>% filter(resid > 87)
+colnames(homology_diff_snakeplot_df)[colnames(homology_diff_snakeplot_df) == 'homology_angle_tocryoEM'] <- 'CA_CX_angle'
+
+```
+
+
+```{r}
+options(repr.plot.width=15, repr.plot.height=15)
+snake_angle_ggplot(alphafold_diff_snakeplot_df, title = "OR51 alphafold CA-CX angle difference to cryoEM", max_angle = 10, direction = 1)
+snake_distance_ggplot(alphafold_diff_snakeplot_df, title = "OR51 alphafold CA-CX distance difference to cryoEM", max_distance = 1)
+snake_angle_ggplot(homology_diff_snakeplot_df,  title = "OR51 homology CA-CX angle difference to cryoEM", max_angle = 10, direction = 1)
+snake_distance_ggplot(homology_diff_snakeplot_df,  title = "OR51 homology CA-CX distance difference to cryoEM", max_distance = 1)
+
+```
 
